@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Classifier</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        #upload-area { border: 2px dashed #ccc; padding: 40px; text-align: center; margin: 20px 0; }
+        #preview { max-width: 100%; max-height: 300px; margin: 20px auto; display: block; }
+        .result { margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 5px; }
+        .confidence-bar { height: 20px; background: #e0e0e0; border-radius: 10px; margin: 10px 0; }
+        .confidence-level { height: 100%; background: #4CAF50; border-radius: 10px; width: 0%; }
+    </style>
+</head>
+<body>
+    <h1>Image Classifier</h1>
+    
+    <div id="upload-area">
+        <p>Drag & drop image here or click to select</p>
+        <input type="file" id="file-input" accept="image/*">
+        <button id="classify-btn">Classify</button>
+    </div>
+    
+    <img id="preview" style="display: none;">
+    
+    <div id="result" class="result" style="display: none;">
+        <h2>Results</h2>
+        <p><strong>Prediction:</strong> <span id="prediction-text"></span></p>
+        <p><strong>Confidence:</strong> <span id="confidence-text"></span></p>
+        <div class="confidence-bar">
+            <div id="confidence-level" class="confidence-level"></div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const classifyBtn = document.getElementById('classify-btn');
+        const preview = document.getElementById('preview');
+        const resultDiv = document.getElementById('result');
+        
+        // Handle file selection
+        fileInput.addEventListener('change', function() {
+            if (fileInput.files && fileInput.files[0]) {
+                preview.src = URL.createObjectURL(fileInput.files[0]);
+                preview.style.display = 'block';
+                resultDiv.style.display = 'none';
+            }
+        });
+        
+        // Handle classification
+        classifyBtn.addEventListener('click', function() {
+            if (!fileInput.files[0]) {
+                alert('Please select an image first!');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            fetch('/predict', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                
+                document.getElementById('prediction-text').textContent = data.prediction;
+                document.getElementById('confidence-text').textContent = 
+                    (data.confidence * 100).toFixed(2) + '%';
+                document.getElementById('confidence-level').style.width = 
+                    (data.confidence * 100) + '%';
+                
+                resultDiv.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Classification failed. Please try again.');
+            });
+        });
+        
+        // Drag and drop functionality
+        const uploadArea = document.getElementById('upload-area');
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, unhighlight, false);
+        });
+        
+        function highlight() {
+            uploadArea.style.borderColor = '#4CAF50';
+        }
+        
+        function unhighlight() {
+            uploadArea.style.borderColor = '#ccc';
+        }
+        
+        uploadArea.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            fileInput.files = files;
+            preview.src = URL.createObjectURL(files[0]);
+            preview.style.display = 'block';
+            resultDiv.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
